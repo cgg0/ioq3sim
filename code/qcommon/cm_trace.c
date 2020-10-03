@@ -465,8 +465,6 @@ CM_TraceThroughPatch
 void CM_TraceThroughPatch( traceWork_t *tw, cPatch_t *patch ) {
 	float		oldFrac;
 
-	c_patch_traces++;
-
 	oldFrac = tw->trace.fraction;
 
 	CM_TraceThroughPatchCollide( tw, patch->pc );
@@ -502,8 +500,6 @@ void CM_TraceThroughBrush( traceWork_t *tw, cbrush_t *brush ) {
 	if ( !brush->numsides ) {
 		return;
 	}
-
-	c_brush_traces++;
 
 	getout = qfalse;
 	startout = qfalse;
@@ -1158,8 +1154,6 @@ void CM_Trace( trace_t *results, const vec3_t start, const vec3_t end, vec3_t mi
 	cmodel_t	*cmod;
 
 	cmod = CM_ClipHandleToModel( model );
-
-	c_traces++;				// for statistics, may be zeroed
 
 	// fill in a default trace
 	Com_Memset( &tw, 0, sizeof(tw) );

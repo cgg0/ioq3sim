@@ -80,14 +80,6 @@ typedef struct {
 #define	WRAP_POINT_EPSILON	0.1
 */
 
-int	c_totalPatchBlocks;
-int	c_totalPatchSurfaces;
-int	c_totalPatchEdges;
-
-static const patchCollide_t	*debugPatchCollide;
-static const facet_t		*debugFacet;
-static qboolean		debugBlock;
-static vec3_t		debugBlockPoints[4];
 
 /*
 =================
@@ -95,8 +87,6 @@ CM_ClearLevelPatches
 =================
 */
 void CM_ClearLevelPatches( void ) {
-	debugPatchCollide = NULL;
-	debugFacet = NULL;
 }
 
 /*
@@ -753,13 +743,6 @@ static void CM_SetBorderInward( facet_t *facet, cGrid_t *grid, int gridPlanes[MA
 			// bisecting side border
 			Com_DPrintf( "WARNING: CM_SetBorderInward: mixed plane sides\n" );
 			facet->borderInward[k] = qfalse;
-			if ( !debugBlock ) {
-				debugBlock = qtrue;
-				VectorCopy( grid->points[i][j], debugBlockPoints[0] );
-				VectorCopy( grid->points[i+1][j], debugBlockPoints[1] );
-				VectorCopy( grid->points[i+1][j+1], debugBlockPoints[2] );
-				VectorCopy( grid->points[i][j+1], debugBlockPoints[3] );
-			}
 		}
 	}
 }
@@ -1224,8 +1207,6 @@ struct patchCollide_s	*CM_GeneratePatchCollide( int width, int height, vec3_t *p
 		}
 	}
 
-	c_totalPatchBlocks += ( grid.width - 1 ) * ( grid.height - 1 );
-
 	// generate a bsp tree for the surface
 	CM_PatchCollideFromGrid( &grid, pf );
 
@@ -1265,9 +1246,6 @@ void CM_TracePointThroughPatchCollide( traceWork_t *tw, const struct patchCollid
 	int			i, j, k;
 	float		offset;
 	float		d1, d2;
-#ifndef BSPC
-	static cvar_t *cv;
-#endif //BSPC
 
 #ifndef BSPC
 	if ( !cm_playerCurveClip->integer || !tw->isPoint ) {
@@ -1324,15 +1302,6 @@ void CM_TracePointThroughPatchCollide( traceWork_t *tw, const struct patchCollid
 		}
 		if ( j == facet->numBorders ) {
 			// we hit this facet
-#ifndef BSPC
-			if (!cv) {
-				cv = Cvar_Get( "r_debugSurfaceUpdate", "1", 0 );
-			}
-			if (cv->integer) {
-				debugPatchCollide = pc;
-				debugFacet = facet;
-			}
-#endif //BSPC
 			planes = &pc->planes[facet->surfacePlane];
 
 			// calculate intersection with a slight pushoff
@@ -1409,9 +1378,6 @@ void CM_TraceThroughPatchCollide( traceWork_t *tw, const struct patchCollide_s *
 	facet_t	*facet;
 	float plane[4] = {0, 0, 0, 0}, bestplane[4] = {0, 0, 0, 0};
 	vec3_t startp, endp;
-#ifndef BSPC
-	static cvar_t *cv;
-#endif //BSPC
 
 	if ( !CM_BoundsIntersect( tw->bounds[0], tw->bounds[1],
 				pc->bounds[0], pc->bounds[1] ) ) {
@@ -1511,16 +1477,6 @@ void CM_TraceThroughPatchCollide( traceWork_t *tw, const struct patchCollide_s *
 				if (enterFrac < 0) {
 					enterFrac = 0;
 				}
-#ifndef BSPC
-				if (!cv) {
-					cv = Cvar_Get( "r_debugSurfaceUpdate", "1", 0 );
-				}
-				if (cv && cv->integer) {
-					debugPatchCollide = pc;
-					debugFacet = facet;
-				}
-#endif //BSPC
-
 				tw->trace.fraction = enterFrac;
 				VectorCopy( bestplane, tw->trace.plane.normal );
 				tw->trace.plane.dist = bestplane[3];
@@ -1647,158 +1603,4 @@ void BotDrawDebugPolygons(void (*drawPoly)(int color, int numPoints, float *poin
 #endif
 
 void CM_DrawDebugSurface( void (*drawPoly)(int color, int numPoints, float *points) ) {
-	static cvar_t	*cv;
-#ifndef BSPC
-	static cvar_t	*cv2;
-#endif
-	const patchCollide_t	*pc;
-	facet_t			*facet;
-	winding_t		*w;
-	int				i, j, k, n;
-	int				curplanenum, planenum, curinward, inward;
-	float			plane[4];
-	vec3_t mins = {-15, -15, -28}, maxs = {15, 15, 28};
-	//vec3_t mins = {0, 0, 0}, maxs = {0, 0, 0};
-	vec3_t v1, v2;
-
-#ifndef BSPC
-	if ( !cv2 )
-	{
-		cv2 = Cvar_Get( "r_debugSurface", "0", 0 );
-	}
-
-	if (cv2->integer != 1)
-	{
-		BotDrawDebugPolygons(drawPoly, cv2->integer);
-		return;
-	}
-#endif
-
-	if ( !debugPatchCollide ) {
-		return;
-	}
-
-#ifndef BSPC
-	if ( !cv ) {
-		cv = Cvar_Get( "cm_debugSize", "2", 0 );
-	}
-#endif
-	pc = debugPatchCollide;
-
-	for ( i = 0, facet = pc->facets ; i < pc->numFacets ; i++, facet++ ) {
-
-		for ( k = 0 ; k < facet->numBorders + 1; k++ ) {
-			//
-			if (k < facet->numBorders) {
-				planenum = facet->borderPlanes[k];
-				inward = facet->borderInward[k];
-			}
-			else {
-				planenum = facet->surfacePlane;
-				inward = qfalse;
-				//continue;
-			}
-
-			Vector4Copy( pc->planes[ planenum ].plane, plane );
-
-			//planenum = facet->surfacePlane;
-			if ( inward ) {
-				VectorSubtract( vec3_origin, plane, plane );
-				plane[3] = -plane[3];
-			}
-
-			plane[3] += cv->value;
-			//*
-			for (n = 0; n < 3; n++)
-			{
-				if (plane[n] > 0) v1[n] = maxs[n];
-				else v1[n] = mins[n];
-			} //end for
-			VectorNegate(plane, v2);
-			plane[3] += fabs(DotProduct(v1, v2));
-			//*/
-
-			w = BaseWindingForPlane( plane,  plane[3] );
-			for ( j = 0 ; j < facet->numBorders + 1 && w; j++ ) {
-				//
-				if (j < facet->numBorders) {
-					curplanenum = facet->borderPlanes[j];
-					curinward = facet->borderInward[j];
-				}
-				else {
-					curplanenum = facet->surfacePlane;
-					curinward = qfalse;
-					//continue;
-				}
-				//
-				if (curplanenum == planenum) continue;
-
-				Vector4Copy( pc->planes[ curplanenum ].plane, plane );
-				if ( !curinward ) {
-					VectorSubtract( vec3_origin, plane, plane );
-					plane[3] = -plane[3];
-				}
-		//			if ( !facet->borderNoAdjust[j] ) {
-					plane[3] -= cv->value;
-		//			}
-				for (n = 0; n < 3; n++)
-				{
-					if (plane[n] > 0) v1[n] = maxs[n];
-					else v1[n] = mins[n];
-				} //end for
-				VectorNegate(plane, v2);
-				plane[3] -= fabs(DotProduct(v1, v2));
-
-				ChopWindingInPlace( &w, plane, plane[3], 0.1f );
-			}
-			if ( w ) {
-				if ( facet == debugFacet ) {
-					drawPoly( 4, w->numpoints, w->p[0] );
-					//Com_Printf("blue facet has %d border planes\n", facet->numBorders);
-				} else {
-					drawPoly( 1, w->numpoints, w->p[0] );
-				}
-				FreeWinding( w );
-			}
-			else
-				Com_Printf("winding chopped away by border planes\n");
-		}
-	}
-
-	// draw the debug block
-	{
-		vec3_t			v[3];
-
-		VectorCopy( debugBlockPoints[0], v[0] );
-		VectorCopy( debugBlockPoints[1], v[1] );
-		VectorCopy( debugBlockPoints[2], v[2] );
-		drawPoly( 2, 3, v[0] );
-
-		VectorCopy( debugBlockPoints[2], v[0] );
-		VectorCopy( debugBlockPoints[3], v[1] );
-		VectorCopy( debugBlockPoints[0], v[2] );
-		drawPoly( 2, 3, v[0] );
-	}
-
-#if 0
-	vec3_t			v[4];
-
-	v[0][0] = pc->bounds[1][0];
-	v[0][1] = pc->bounds[1][1];
-	v[0][2] = pc->bounds[1][2];
-
-	v[1][0] = pc->bounds[1][0];
-	v[1][1] = pc->bounds[0][1];
-	v[1][2] = pc->bounds[1][2];
-
-	v[2][0] = pc->bounds[0][0];
-	v[2][1] = pc->bounds[0][1];
-	v[2][2] = pc->bounds[1][2];
-
-	v[3][0] = pc->bounds[0][0];
-	v[3][1] = pc->bounds[1][1];
-	v[3][2] = pc->bounds[1][2];
-
-	drawPoly( 4, v[0] );
-#endif
 }

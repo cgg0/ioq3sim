@@ -26,13 +26,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "cm_local.h"
 
 
-// counters are only bumped when running single threaded,
-// because they are an awful coherence problem
-int	c_active_windings;
-int	c_peak_windings;
-int	c_winding_allocs;
-int	c_winding_points;
-
 void pw(winding_t *w)
 {
 	int		i;
@@ -51,12 +44,6 @@ winding_t	*AllocWinding (int points)
 	winding_t	*w;
 	int			s;
 
-	c_winding_allocs++;
-	c_winding_points += points;
-	c_active_windings++;
-	if (c_active_windings > c_peak_windings)
-		c_peak_windings = c_active_windings;
-
 	s = sizeof(vec_t)*3*points + sizeof(int);
 	w = Z_Malloc (s);
 	Com_Memset (w, 0, s); 
@@ -69,7 +56,6 @@ void FreeWinding (winding_t *w)
 		Com_Error (ERR_FATAL, "FreeWinding: freed a freed winding");
 	*(unsigned *)w = 0xdeaddead;
 
-	c_active_windings--;
 	Z_Free (w);
 }
 
@@ -78,7 +64,6 @@ void FreeWinding (winding_t *w)
 RemoveColinearPoints
 ============
 */
-int	c_removed;
 
 void	RemoveColinearPoints (winding_t *w)
 {
@@ -106,7 +91,6 @@ void	RemoveColinearPoints (winding_t *w)
 	if (nump == w->numpoints)
 		return;
 
-	c_removed += w->numpoints - nump;
 	w->numpoints = nump;
 	Com_Memcpy (w->p, p, nump*sizeof(p[0]));
 }
@@ -312,7 +296,7 @@ void	ClipWindingEpsilon (winding_t *in, vec3_t normal, vec_t dist,
 	vec_t	dists[MAX_POINTS_ON_WINDING+4] = { 0 };
 	int		sides[MAX_POINTS_ON_WINDING+4] = { 0 };
 	int		counts[3];
-	static	vec_t	dot;		// VC 4.2 optimizer bug if not static
+	vec_t		dot;
 	int		i, j;
 	vec_t	*p1, *p2;
 	vec3_t	mid;
@@ -424,7 +408,7 @@ void ChopWindingInPlace (winding_t **inout, vec3_t normal, vec_t dist, vec_t eps
 	vec_t	dists[MAX_POINTS_ON_WINDING+4] = { 0 };
 	int		sides[MAX_POINTS_ON_WINDING+4] = { 0 };
 	int		counts[3];
-	static	vec_t	dot;		// VC 4.2 optimizer bug if not static
+	vec_t		dot;
 	int		i, j;
 	vec_t	*p1, *p2;
 	vec3_t	mid;
