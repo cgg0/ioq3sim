@@ -3013,13 +3013,7 @@ int Com_ModifyMsec( int msec ) {
 	}
 
 	if ( com_dedicated->integer ) {
-		// dedicated servers don't want to clamp for a much longer
-		// period, because it would mess up all the client's views
-		// of time.
-		if (com_sv_running->integer && msec > 500)
-			Com_Printf( "Hitch warning: %i msec frame time\n", msec );
-
-		clampTime = 5000;
+		clampTime = 50000;
 	} else 
 	if ( !com_sv_running->integer ) {
 		// clients of remote servers do not want to clamp time, because
@@ -3101,7 +3095,7 @@ void Com_Frame( void ) {
 	if(!com_timedemo->integer)
 	{
 		if(com_dedicated->integer)
-			minMsec = SV_FrameMsec();
+			minMsec = 1;
 		else
 		{
 			if(com_minimized->integer && com_maxfpsMinimized->integer > 0)
