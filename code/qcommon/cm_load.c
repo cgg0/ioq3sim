@@ -647,6 +647,12 @@ void CM_LoadMap( const char *name, qboolean clientload, int *checksum ) {
 	CMod_LoadVisibility( &header.lumps[LUMP_VISIBILITY] );
 	CMod_LoadPatches( &header.lumps[LUMP_SURFACES], &header.lumps[LUMP_DRAWVERTS] );
 
+	if (cm.numBrushes > sizeof(((traceWork_t*)0)->bmask) << 3) {
+		Com_Error( ERR_DROP, "map has too many (%i) brushes for ioq3sim's collision buffer", cm.numBrushes );
+	}
+	if (cm.numSurfaces > sizeof(((traceWork_t*)0)->pmask) << 3) {
+		Com_Error( ERR_DROP, "map has too many (%i) patches for ioq3sim's collision buffer", cm.numSurfaces );
+	}
 	// we are NOT freeing the file, because it is cached for the ref
 	FS_FreeFile (buf.v);
 

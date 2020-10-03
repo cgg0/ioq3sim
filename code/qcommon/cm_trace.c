@@ -242,6 +242,7 @@ CM_TestInLeaf
 void CM_TestInLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 	int			k;
 	int			brushnum;
+	int			patchnum;
 	cbrush_t	*b;
 	cPatch_t	*patch;
 
@@ -249,10 +250,10 @@ void CM_TestInLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 	for (k=0 ; k<leaf->numLeafBrushes ; k++) {
 		brushnum = cm.leafbrushes[leaf->firstLeafBrush+k];
 		b = &cm.brushes[brushnum];
-		if (b->checkcount == cm.checkcount) {
+		if (tw->bmask[brushnum>>3] & (1<<(brushnum&0x07))) {
 			continue;	// already checked this brush in another leaf
 		}
-		b->checkcount = cm.checkcount;
+		tw->bmask[brushnum>>3] |= 1<<(brushnum&0x07);
 
 		if ( !(b->contents & tw->contents)) {
 			continue;
@@ -271,14 +272,15 @@ void CM_TestInLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 	if ( !cm_noCurves->integer ) {
 #endif //BSPC
 		for ( k = 0 ; k < leaf->numLeafSurfaces ; k++ ) {
-			patch = cm.surfaces[ cm.leafsurfaces[ leaf->firstLeafSurface + k ] ];
+			patchnum = cm.leafsurfaces[ leaf->firstLeafSurface + k ];
+			patch = cm.surfaces[ patchnum ];
 			if ( !patch ) {
 				continue;
 			}
-			if ( patch->checkcount == cm.checkcount ) {
+			if ( tw->pmask[patchnum>>3] & (1<<(patchnum&0x07))) {
 				continue;	// already checked this brush in another leaf
 			}
-			patch->checkcount = cm.checkcount;
+			tw->pmask[patchnum>>3] |= 1<<(patchnum&0x07);
 
 			if ( !(patch->contents & tw->contents)) {
 				continue;
@@ -428,12 +430,13 @@ void CM_PositionTest( traceWork_t *tw ) {
 	ll.lastLeaf = 0;
 	ll.overflowed = qfalse;
 
-	cm.checkcount++;
+	Com_Memset(ll.bmask, 0, cm.numBrushes>>3);
+	Com_Memset(ll.pmask, 0, cm.numSurfaces>>3);
 
 	CM_BoxLeafnums_r( &ll, 0 );
 
-
-	cm.checkcount++;
+	Com_Memset(tw->bmask, 0, cm.numBrushes>>3);
+	Com_Memset(tw->pmask, 0, cm.numSurfaces>>3);
 
 	// test the contents of the leafs
 	for (i=0 ; i < ll.count ; i++) {
@@ -669,6 +672,7 @@ CM_TraceThroughLeaf
 void CM_TraceThroughLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 	int			k;
 	int			brushnum;
+	int			patchnum;
 	cbrush_t	*b;
 	cPatch_t	*patch;
 
@@ -677,10 +681,10 @@ void CM_TraceThroughLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 		brushnum = cm.leafbrushes[leaf->firstLeafBrush+k];
 
 		b = &cm.brushes[brushnum];
-		if ( b->checkcount == cm.checkcount ) {
+		if ( tw->bmask[brushnum>>3] & (1<<(brushnum&0x07))) {
 			continue;	// already checked this brush in another leaf
 		}
-		b->checkcount = cm.checkcount;
+		tw->bmask[brushnum>>3] |= 1<<(brushnum&0x07);
 
 		if ( !(b->contents & tw->contents) ) {
 			continue;
@@ -704,14 +708,15 @@ void CM_TraceThroughLeaf( traceWork_t *tw, cLeaf_t *leaf ) {
 	if ( !cm_noCurves->integer ) {
 #endif
 		for ( k = 0 ; k < leaf->numLeafSurfaces ; k++ ) {
-			patch = cm.surfaces[ cm.leafsurfaces[ leaf->firstLeafSurface + k ] ];
+			patchnum = cm.leafsurfaces[ leaf->firstLeafSurface + k ];
+			patch = cm.surfaces[ patchnum ];
 			if ( !patch ) {
 				continue;
 			}
-			if ( patch->checkcount == cm.checkcount ) {
+			if ( tw->pmask[patchnum>>3] & (1<<(patchnum&0x07))) {
 				continue;	// already checked this patch in another leaf
 			}
-			patch->checkcount = cm.checkcount;
+			tw->pmask[patchnum>>3] |= 1<<(patchnum&0x07);
 
 			if ( !(patch->contents & tw->contents) ) {
 				continue;
@@ -1153,8 +1158,6 @@ void CM_Trace( trace_t *results, const vec3_t start, const vec3_t end, vec3_t mi
 	cmodel_t	*cmod;
 
 	cmod = CM_ClipHandleToModel( model );
-
-	cm.checkcount++;		// for multi-check avoidance
 
 	c_traces++;				// for statistics, may be zeroed
 

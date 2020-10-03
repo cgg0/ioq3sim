@@ -101,10 +101,10 @@ void CM_StoreBrushes( leafList_t *ll, int nodenum ) {
 	for ( k = 0 ; k < leaf->numLeafBrushes ; k++ ) {
 		brushnum = cm.leafbrushes[leaf->firstLeafBrush+k];
 		b = &cm.brushes[brushnum];
-		if ( b->checkcount == cm.checkcount ) {
+		if ( ll->bmask[brushnum>>3] & (1<<(brushnum&0x07))) {
 			continue;	// already checked this brush in another leaf
 		}
-		b->checkcount = cm.checkcount;
+		ll->bmask[brushnum>>3] |= 1<<(brushnum&0x07);
 		for ( i = 0 ; i < 3 ; i++ ) {
 			if ( b->bounds[0][i] >= ll->bounds[1][i] || b->bounds[1][i] <= ll->bounds[0][i] ) {
 				break;
@@ -172,8 +172,6 @@ CM_BoxLeafnums
 int	CM_BoxLeafnums( const vec3_t mins, const vec3_t maxs, int *list, int listsize, int *lastLeaf) {
 	leafList_t	ll;
 
-	cm.checkcount++;
-
 	VectorCopy( mins, ll.bounds[0] );
 	VectorCopy( maxs, ll.bounds[1] );
 	ll.count = 0;
@@ -182,6 +180,9 @@ int	CM_BoxLeafnums( const vec3_t mins, const vec3_t maxs, int *list, int listsiz
 	ll.storeLeafs = CM_StoreLeafs;
 	ll.lastLeaf = 0;
 	ll.overflowed = qfalse;
+
+	Com_Memset(ll.bmask, 0, cm.numBrushes>>3);
+	Com_Memset(ll.pmask, 0, cm.numSurfaces>>3);
 
 	CM_BoxLeafnums_r( &ll, 0 );
 
@@ -197,8 +198,6 @@ CM_BoxBrushes
 int CM_BoxBrushes( const vec3_t mins, const vec3_t maxs, cbrush_t **list, int listsize ) {
 	leafList_t	ll;
 
-	cm.checkcount++;
-
 	VectorCopy( mins, ll.bounds[0] );
 	VectorCopy( maxs, ll.bounds[1] );
 	ll.count = 0;
@@ -208,6 +207,9 @@ int CM_BoxBrushes( const vec3_t mins, const vec3_t maxs, cbrush_t **list, int li
 	ll.lastLeaf = 0;
 	ll.overflowed = qfalse;
 	
+	Com_Memset(ll.bmask, 0, cm.numBrushes>>3);
+	Com_Memset(ll.pmask, 0, cm.numSurfaces>>3);
+
 	CM_BoxLeafnums_r( &ll, 0 );
 
 	return ll.count;

@@ -62,12 +62,10 @@ typedef struct {
 	vec3_t		bounds[2];
 	int			numsides;
 	cbrushside_t	*sides;
-	int			checkcount;		// to avoid repeated testings
 } cbrush_t;
 
 
 typedef struct {
-	int			checkcount;				// to avoid repeated testings
 	int			surfaceFlags;
 	int			contents;
 	struct patchCollide_s	*pc;
@@ -125,7 +123,6 @@ typedef struct {
 	cPatch_t	**surfaces;			// non-patches will be NULL
 
 	int			floodvalid;
-	int			checkcount;					// incremented on each trace
 } clipMap_t;
 
 
@@ -164,6 +161,8 @@ typedef struct {
 	qboolean	isPoint;	// optimized case
 	trace_t		trace;		// returned from trace call
 	sphere_t	sphere;		// sphere for oriendted capsule collision
+	unsigned char	bmask[4096];	// bitmask of brushes already visited
+	unsigned char	pmask[4096];	// bitmask of patches already visited
 } traceWork_t;
 
 typedef struct leafList_s {
@@ -174,6 +173,8 @@ typedef struct leafList_s {
 	vec3_t	bounds[2];
 	int		lastLeaf;		// for overflows where each leaf can't be stored individually
 	void	(*storeLeafs)( struct leafList_s *ll, int nodenum );
+	unsigned char	bmask[4096];	// bitmask of brushes already visited
+	unsigned char	pmask[4096];	// bitmask of patches already visited
 } leafList_t;
 
 
